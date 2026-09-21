@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: plate_checker
+      POSTGRES_PASSWORD: plate_checker_db
+      POSTGRES_DB: plate_checker_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  
+  api: 
+    build: .
+    ports: 
+      - "8000:8000"
+    depends_on: 
+      - db
+    environment:
+      - DATABASE_URL=postgresql://plate_checker:plate_checker_db@db:5432/plate_checker_db
+    volumes:
+      - .:/code
+  
+volumes: 
+  pgdata:
