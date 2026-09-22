@@ -104,5 +104,7 @@ directly in Postgres via `psql`):
 - [ ] Full field normalization from Open Data
 - [ ] Test suite + GitHub Actions CI (Postgres service container)
 - [ ] Env-based config, `.env` for local secrets
+- [ ] Rate limiting (`slowapi` + a Socrata app token) — prerequisite before public deploy
 - [ ] Pruning job for old/unqueried plates
-- [ ] Deploy to Supabase, repoint the [frontend](https://github.com/KrummenauerKael/NYCplatechecker) at this API
+- [ ] Deploy DB to Supabase; deploy API to AWS ECS Fargate (ECR, task definition, ALB)
+- [ ] Repoint the [frontend](https://github.com/KrummenauerKael/NYCplatechecker) at this API
