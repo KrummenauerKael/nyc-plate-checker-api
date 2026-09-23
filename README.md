@@ -39,8 +39,10 @@ response times fast on repeat lookups, and avoids hammering a rate-limited publi
   cache TTL.
 - `violations` — one row per violation, keyed by `summons_number` (the upsert target).
   `amount_due` is refreshed on every fetch so paid/outstanding status stays current.
-- `lookups` — intended as a timestamped query log per plate. **Defined but not yet
-  wired up** — see Status.
+  `total_amount` is derived (fine + penalty + interest), `violation_date` is a `DATE`,
+  and the full Open Data record is kept in `raw_data` (`JSONB`) so no fields are lost.
+- `lookups` — timestamped log of every request per plate, to support pruning
+  unqueried plates and usage stats.
 
 ## Running locally
 
@@ -73,12 +75,21 @@ GET http://localhost:8000/plates/NY/ABC1234
   "state": "NY",
   "plate": "ABC1234",
   "source": "open_data",
-  "violation_count": 3
+  "violation_count": 3,
+  "violations": [
+    {
+      "summons_number": "1234567890",
+      "amount_due": 0,
+      "total_amount": 75,
+      "violation_date": "2024-07-25",
+      "violation": "NO PARKING-STREET CLEANING"
+    }
+  ]
 }
 ```
 
 `source` is `"open_data"` on a cache miss/refresh, `"cache"` when served from Postgres
-without an external call.
+without an external call. Violations are ordered newest first (undated last).
 
 ## Status
 
@@ -86,13 +97,15 @@ without an external call.
 directly in Postgres via `psql`):
 - Docker Compose networking (`api` ↔ `db` by service name)
 - Alembic migrations creating the schema
-- Cache-aside read/fetch/upsert logic in `GET /plates/{state}/{plate}`
+- Cache-aside read/fetch/upsert logic in `GET /plates/{state}/{plate}`, including the
+  stale-cache refresh path
+- Field mapping from Open Data (`total_amount`, `violation_date`, full record in `raw_data`)
+- Query logging to `lookups` on both cache hit and miss
+- Input handling: plate/state normalized to uppercase; Open Data query parameters
+  escaped; Socrata's default 1,000-row limit raised
+- Response includes violation details, newest first
 
 **Not yet done:**
-- `lookups` table is defined but nothing writes to it yet
-- Field normalization is minimal — only `summons_number` and `amount_due` are mapped
-  from Open Data today; `total_amount`, `violation_date`, and other fields (violation
-  type, county, issuing agency, etc.) aren't populated yet
 - No automated tests, no CI
 - No pruning job for stale/unqueried plates
 - Credentials are hardcoded for local dev, not yet read from environment/`.env`
@@ -100,8 +113,9 @@ directly in Postgres via `psql`):
 
 ## Roadmap
 
-- [ ] Wire up `lookups` query logging
-- [ ] Full field normalization from Open Data
+- [x] Wire up `lookups` query logging
+- [x] Full field normalization from Open Data
+- [x] Return violation details in the response
 - [ ] Test suite + GitHub Actions CI (Postgres service container)
 - [ ] Env-based config, `.env` for local secrets
 - [ ] Rate limiting (`slowapi` + a Socrata app token) — prerequisite before public deploy
