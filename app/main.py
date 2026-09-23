@@ -6,16 +6,36 @@ import requests
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
+# Open Data uses many codes per borough; map known ones to one name
+BOROUGHS = {
+    "NY": "Manhattan", "MN": "Manhattan",
+    "K": "Brooklyn", "BK": "Brooklyn", "KINGS": "Brooklyn",
+    "Q": "Queens", "QN": "Queens", "QNS": "Queens", "QUEEN": "Queens",
+    "BX": "Bronx", "BRONX": "Bronx",
+    "R": "Staten Island", "ST": "Staten Island", "RICH": "Staten Island",
+}
+
+
 # Shared by both cache paths so the response shape can't drift
 def format_violations(violations):
     violation_list = []
     for v in violations:
+        rd = v.raw_data or {} # or {} guards against rows with no raw_data
+        county = rd.get("county")
         violation_list.append({
             "summons_number": v.summons_number,
             "amount_due": v.amount_due,
             "total_amount": v.total_amount,
+            "payment_amount": Decimal(rd.get("payment_amount", 0)),
+            "fine_amount": Decimal(rd.get("fine_amount", 0)),
+            "penalty_amount": Decimal(rd.get("penalty_amount", 0)),
+            "interest_amount": Decimal(rd.get("interest_amount", 0)),
             "violation_date": v.violation_date,
-            "violation": (v.raw_data or {}).get("violation"), # or {} guards against rows with no raw_data
+            "violation_time": rd.get("violation_time"),
+            "violation_type": rd.get("violation"),
+            "violation_status": rd.get("violation_status"),
+            "license_type": rd.get("license_type"),
+            "county": BOROUGHS.get(county.upper(), county) if county else None,
         })
     return violation_list
 
