@@ -9,6 +9,8 @@ app = FastAPI()
 
 @app.get("/plates/{state}/{plate}")
 def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
+    state = state.upper()
+    plate = plate.upper()
     existing = db.query(Plate).filter(Plate.plate == plate, Plate.state == state).first()
 
     # 24h TTL matches Open Data's own daily refresh cadence
@@ -37,8 +39,8 @@ def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
 
     # Cache miss or stale: fetch current data from NYC Open Data
     else:
-        url = f"https://data.cityofnewyork.us/resource/nc67-uf89.json?plate={plate}&state={state}"
-        response = requests.get(url)
+        url = "https://data.cityofnewyork.us/resource/nc67-uf89.json"
+        response = requests.get(url, params={"plate": plate, "state": state, "$limit": 50000})
         response.raise_for_status()
         data = response.json()
 
@@ -59,7 +61,7 @@ def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
 
         # Log this query; saved by the commit below (after flush, so existing.id is set)
         db.add(Lookup(plate_id=existing.id))
-    
+
         # Finalize the Plate,Violation, Lookup changes staged above
         db.commit()
 
