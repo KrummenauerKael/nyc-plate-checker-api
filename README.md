@@ -81,8 +81,16 @@ GET http://localhost:8000/plates/NY/ABC1234
       "summons_number": "1234567890",
       "amount_due": 0,
       "total_amount": 75,
+      "payment_amount": 75,
+      "fine_amount": 65,
+      "penalty_amount": 10,
+      "interest_amount": 0,
       "violation_date": "2024-07-25",
-      "violation": "NO PARKING-STREET CLEANING"
+      "violation_time": "09:49A",
+      "violation_type": "NO PARKING-STREET CLEANING",
+      "violation_status": null,
+      "license_type": "PAS",
+      "county": "Brooklyn"
     }
   ]
 }
@@ -90,6 +98,9 @@ GET http://localhost:8000/plates/NY/ABC1234
 
 `source` is `"open_data"` on a cache miss/refresh, `"cache"` when served from Postgres
 without an external call. Violations are ordered newest first (undated last).
+`total_amount` is fine + penalty + interest. `county` is normalized from Open Data's
+mixed borough codes (e.g. `K`, `BK`, `Kings` → `Brooklyn`); unrecognized codes are
+passed through unchanged.
 
 ## Status
 
@@ -103,7 +114,8 @@ directly in Postgres via `psql`):
 - Query logging to `lookups` on both cache hit and miss
 - Input handling: plate/state normalized to uppercase; Open Data query parameters
   escaped; Socrata's default 1,000-row limit raised
-- Response includes violation details, newest first
+- Response includes violation details (fee breakdown, payment, status, time, license
+  type, normalized county), newest first
 
 **Not yet done:**
 - No automated tests, no CI
