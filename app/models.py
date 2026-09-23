@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, func, Date
 from sqlalchemy.orm import declarative_base
 from datetime import datetime, timezone
+from sqlalchemy.dialects.postgresql import JSONB
 
 Base = declarative_base()
 
@@ -23,8 +24,8 @@ class Violation(Base):
     plate_id = Column(Integer, ForeignKey('plates.id'), nullable=False)
     amount_due = Column(Numeric, nullable=True)
     total_amount = Column(Numeric, nullable=True)
-    violation_date = Column(DateTime(timezone=True), nullable=True)
-    raw_data = Column(String, nullable=True)
+    violation_date = Column(Date, nullable=True)
+    raw_data = Column(JSONB, nullable=True)
 
 # Timestamped log of each query made for a plate (for history/analytics, not TTL)
 class Lookup(Base):

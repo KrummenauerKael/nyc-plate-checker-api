@@ -4,6 +4,7 @@ from app.db import get_db
 from app.models import Plate, Violation, Lookup
 import requests
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
 app = FastAPI()
 
@@ -57,7 +58,13 @@ def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
             if violation is None:
                 violation = Violation(summons_number=summons, plate_id=existing.id)
                 db.add(violation)
+
+            violation.total_amount = Decimal(record.get("fine_amount", "0")) + Decimal(record.get("penalty_amount", "0")) + Decimal(record.get("interest_amount", "0"))
             violation.amount_due = record.get("amount_due")
+            violation.raw_data = record # store entire record as JSONB
+            issue_date = record.get("issue_date")
+            if issue_date:
+                violation.violation_date = datetime.strptime(issue_date, "%m/%d/%Y").date()
 
         # Log this query; saved by the commit below (after flush, so existing.id is set)
         db.add(Lookup(plate_id=existing.id))
