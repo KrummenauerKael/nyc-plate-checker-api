@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import Plate, Violation
+from app.models import Plate, Violation, Lookup
 import requests
 from datetime import datetime, timezone, timedelta
 
@@ -24,6 +24,10 @@ def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
     # Cache hit: serve stored violations without calling Open Data
     if is_fresh:
         violations = db.query(Violation).filter(Violation.plate_id == existing.id).all()
+
+        # Log the lookup (used for pruning)
+        db.add(Lookup(plate_id=existing.id))
+        db.commit()
         return {
             "state": state,
             "plate": plate,
@@ -47,13 +51,16 @@ def get_plate(state: str, plate: str, db: Session = Depends(get_db)):
         # Upsert: update the violation if we've seen this summons before, else insert a new one
         for record in data:
             summons = record.get("summons_number")
-            violations = db.query(Violation).filter(Violation.summons_number == summons).first()
-            if violations is None:
+            violation = db.query(Violation).filter(Violation.summons_number == summons).first()
+            if violation is None:
                 violation = Violation(summons_number=summons, plate_id=existing.id)
                 db.add(violation)
             violation.amount_due = record.get("amount_due")
-            
-        # Finalize the Plate + Violation changes staged above
+
+        # Log this query; saved by the commit below (after flush, so existing.id is set)
+        db.add(Lookup(plate_id=existing.id))
+    
+        # Finalize the Plate,Violation, Lookup changes staged above
         db.commit()
 
         violations = db.query(Violation).filter(Violation.plate_id == existing.id).all()
